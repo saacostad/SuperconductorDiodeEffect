@@ -43,7 +43,7 @@ def runSimulation(I_val, B, device, solvetime, skiptime):
     return((I_val, v_mean))
 
 
-def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100):
+def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, presicion = 1e-2, ccTrsh = 1e-2):
     """ This function will find and graph the critical currents for a system. 
     It uses a bijection algorithm to avoid simulating currents we do not need. 
     It uses half the CPU count to process one polarity. 
@@ -53,8 +53,11 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100):
     cpuS = int(cpu_count() / 2)     # No of CPUs we'll use per polarization
 
 
-    cint = c0 / cpuS                # Currents intervals to simualte
-    currents = [-c0 + cint*p for p in range(cpuS)] + [cint*(p+1) for p in range(cpuS)]  # First currents we'll check
+    cint_neg = c0 / cpuS                # Currents intervals to simualte
+    cint_pos = c0 / cpuS                # Currents intervals to simualte
+    c0_l = c0 
+    c0_r = c0
+    currents = [-c0 + cint_neg*p for p in range(cpuS)] + [cint_pos*(p+1) for p in range(cpuS)]  # First currents we'll check
     
     print(f"================================\n INITIAL CURRENTS")
 
@@ -76,7 +79,7 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100):
 
 
         # Check if we found a critical current 
-        mask = abs(V) > 0.01
+        mask = abs(V) > ccTrsh
         vTest = np.where(mask)[0]
 
         print(f'\n\n -------------------------------- \n {V} \n {Is}\n')
@@ -84,24 +87,70 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100):
         if vTest.size == 0:
             # If we haven't found the critical current, look in the next big interval
             print("--------------------------------------\n Haven't found critical currents \n\n ========================== \n NEW ATTEMP \n ")
-            c0 += c0
-            currents = [-c0 + cint*p for p in range(cpuS)] + [(c0/2) + cint*(p+1) for p in range(cpuS)]
+            print("Under super-critical current evaluation")
+            c0_l += c0_l 
+            c0_r += c0_r
+            currents = [-c0_l + cint_neg*p for p in range(cpuS)] + [(c0_r/2) + cint_pos*(p+1) for p in range(cpuS)]
             continue
         
 
+        # This will give me the indexes where there's a jump
         changes = np.where(abs(np.diff(mask.astype(int))))[0]
 
 
         if changes.size == 0:
-            print("--------------------------------------\n Haven't found critical currents \n\n ========================== \n NEW ATTEMP \n ")
-            c0 /= 2
-            cint = c0 / cpuS  
-            currents = [-c0 + cint*p for p in range(cpuS)] + [(c0/2) + cint*(p+1) for p in range(cpuS)]
+            print("--------------------------------------\n Haven't found critical currents ")
+            print("\nOver super-critical current evaluation")
+            print("\n========================== \n NEW ATTEMP \n -------------------- \n")
+
+
+            c0_l = abs(currents[ int(cpuS)-1 ])
+            c0_r = abs( currents[ int(cpuS) ] )
+            cint_neg = c0_l / cpuS  
+            cint_pos = c0_r / cpuS  
+            currents = [-c0_l + cint_neg*p for p in range(cpuS)] + [cint_pos*(p+1) for p in range(cpuS)]
             continue
 
         print(f"------------------------------------\n FOUND CRITICAL CURRENTS\n----------------------------------------- \n ")
-        # This will give me the indexes where there's a jump
 
+
+        if changes.size == 1:
+            print("Entered super assymetric region")
+            if int(changes[0]) < cpuS:
+                # This means we found a critical current on the left side but not on the right side 
+                low_neg_currents = Is[int(changes[0])]
+                up_neg_currents = Is[int(changes[0])+1]
+
+                cint_neg = abs(up_neg_currents - low_neg_currents) / cpuS
+                
+                if mask[int(cpuS//2) + 1] == 0:
+                    # If we're way up te critical current on the other side, we do somethinf
+                    c0_r = abs( cint_pos*cpuS )
+                    cint_pos = c0_r / cpuS  
+                    RS_currents = [cint_pos*(p+1) for p in range(cpuS)]
+                else: 
+                    c0_r += c0_r
+                    RS_currents = [(c0_r/2) + cint_pos*(p+1) for p in range(cpuS)]
+
+                currents = [low_neg_currents + cint_neg*p for p in range(cpuS)] + RS_currents 
+
+            else:
+                # This means we found a critical current on the right side but not on the left side 
+                low_pos_currents = Is[int(changes[0])]
+                up_pos_currents = Is[int(changes[0])+1]
+
+                cint_pos = abs(up_pos_currents - low_pos_currents) / cpuS
+                
+                if mask[1] == 0:
+                    # If we're way up te critical current on the other side, we do somethinf
+                    c0_l = abs(-c0_l + cint_neg*(cpuS - 1))
+                    cint_neg = c0_l / cpuS  
+                    RS_currents = [-c0_l + cint_neg*p for p in range(cpuS)]
+                else: 
+                    c0_l += c0_l
+                    RS_currents = [-c0_l + cint_neg*p for p in range(cpuS)]
+
+                currents =  RS_currents + [low_pos_currents + cint_neg*p for p in range(cpuS)]
 
 
         low_neg_currents = Is[int(changes[0])]
@@ -114,8 +163,14 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100):
         cint_neg_temp = abs(up_neg_currents - low_neg_currents)
         cint_pos_temp = abs(up_pos_currents - low_pos_currents) 
         
-        if cint_neg_temp < 1e-2 and cint_pos_temp < 1e-2:
+        if cint_neg_temp < presicion and cint_pos_temp < presicion:
             print("\n\n\n===============================================\n FINISHED SIMULATION")
+            print("\n FOUND CRITICAL CURRENTS: ")
+            print(f"I- = {low_neg_currents + cint_neg_temp/2} +- {cint_neg_temp/4}")
+            print(f"I+ = {low_pos_currents + cint_pos_temp/2} +- {cint_pos_temp/4}")
+
+            print(f"\n\n With a precision of up to {presicion}")
+
             break
 
         cint_neg = cint_neg_temp / cpuS

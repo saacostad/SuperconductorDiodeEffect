@@ -24,12 +24,12 @@ def runSimulation(I, B, device, simulation_time):
 
     sol = tdgl.solve(device, opts,
                      applied_vector_potential = B,
-                     terminal_currents = {"source": B, "drain": -B})
+                     terminal_currents = {"source": I, "drain": -I})
 
     return sol.plot_order_parameter()
 
 
-def process_one(I, B, path, device, simulation_time):
+def process_one(I, B, path, name, device, simulation_time):
     fig, axs = runSimulation(I, B, device, simulation_time)
     fig.canvas.draw()  
 
@@ -38,21 +38,21 @@ def process_one(I, B, path, device, simulation_time):
         bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 
         fig.savefig(
-            f"images/checkVorticity/{path}/B{B}_I{I}_{name}.png",
+            f"images/checkVorticity/{path}/{I}_{name}.png",
             bbox_inches=bbox
         )
 
     plt.close(fig)
 
 
-def checkParameters(device, path = "set1", currents=[0], mfields=[0.005 * i for i in range(0, 10)], simulation_time = 750):
+def checkParameters(device, path = "set1", name="C", currents=[0], mfields=[0.005 * i for i in range(0, 10)], simulation_time = 750):
     """ This function takes a device and runs simulations for different values of 
     extern parameters (bias currents and applied magnetic fields) and outputs a graph of them """
     
     jobs = itertools.product(currents, mfields)
 
     Parallel(n_jobs=-1, backend="loky")(
-    delayed(process_one)(I, B, path, device, simulation_time)
+    delayed(process_one)(I, B, path, name, device, simulation_time)
         for I, B in jobs
     )
 
