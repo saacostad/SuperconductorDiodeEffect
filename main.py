@@ -60,6 +60,7 @@ AVRTIME = 10
 MAGNETIC_FIELD = 5.0
 INITIAL_CURRENT_CHOICE = 0.1
 
+CORES = 30
 
 """ CREATING THE DEVICE 
 all code is found in geometr.py """
@@ -93,7 +94,7 @@ for value in critical_param_value_list:
     device.make_mesh(max_edge_length=xi / 2)
 
 
-    findCriticalCurrents(device, 5.0, 0.1, PATH, presicion = 1e-2, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=critical_param, critical_param_value=value)
+    findCriticalCurrents(device, MAGNETIC_FIELD, INITIAL_CURRENT_CHOICE, PATH, presicion = 1e-2, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=critical_param, critical_param_value=value, cores = CORES)
 
 
 

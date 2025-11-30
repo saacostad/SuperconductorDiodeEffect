@@ -48,14 +48,15 @@ def runSimulation(I_val, B, device, solvetime, skiptime):
     return((I_val, v_mean))
 
 
-def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, presicion = 1e-2, ccTrsh = 1e-2, critical_param = "Shape", critical_param_value = 10.0):
+def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, presicion = 1e-2, ccTrsh = 1e-2, critical_param = "Shape", critical_param_value = 10.0, cores = 30):
     """ This function will find and graph the critical currents for a system. 
     It uses a bijection algorithm to avoid simulating currents we do not need. 
     It uses half the CPU count to process one polarity. 
     Once it finishes simulating all the found voltages parallely, it checks in which region we should increase the number of points
     to have a more precise measurement of the critical current """
 
-    cpuS = int(cpu_count() / 2)     # No of CPUs we'll use per polarization
+    # cpuS = int(cpu_count() / 2)     # No of CPUs we'll use per polarization
+    cpuS = (cores // 2)
 
 
     cint_neg = c0 / cpuS                # Currents intervals to simualte
@@ -67,11 +68,12 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, p
     print("=" * 30)
     print("STARTING SIMULATION FOR THE FOLLOWING PARAMETERS")
     print(f"{critical_param}: {critical_param_value}")
+    print(f"Using only {cores} cores")
     print("=" * 30)
 
     while True:
         # Run the paralelized process and get the results
-        results = Parallel(n_jobs=-1)(
+        results = Parallel(n_jobs=cores)(
                 delayed(lambda I: runSimulation(I, B, device, solvetime, skiptime))(I) for I in currents
         )
 
