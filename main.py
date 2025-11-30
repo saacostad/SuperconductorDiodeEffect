@@ -31,6 +31,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed    # To run different systems on paralel
 import os 
+import argparse
+
+
 
 # Custom headers imports 
 from tools.animation import *
@@ -49,18 +52,42 @@ layer = createLayer(xi, london_lambda, d)
 
 """ CODE PARAMETERS """
 PATH = "test"
-critical_param = "bridge_width"
-critical_param_value_list = [0.1 + 0.05 * n for n in range(10)]
+# critical_param = "bridge_width"
+# critical_param_value_list = [0.1 + 0.05 * n for n in range(10)]
+
+PRESICION = 1e-3
+
+THERMTIME = 500 
+AVRTIME = 200
 
 
-THERMTIME = 10 
-AVRTIME = 10
-
-
-MAGNETIC_FIELD = 5.0
+MAGNETIC_FIELD = 15.0
 INITIAL_CURRENT_CHOICE = 0.1
 
-CORES = 30
+CORES = 80
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--vary", required=True,
+                    choices=[
+                        "bridge_width", "bulge_radius", "noise_amplitude",
+                        "noise_w", "circle_def", "theta_min", "theta_max"
+                    ])
+
+parser.add_argument("--start", type=float, required=True,
+                    help="Start value for variation")
+parser.add_argument("--stop", type=float, required=True,
+                    help="Stop value for variation")
+parser.add_argument("--num", type=int, required=True,
+                    help="Number of values")
+
+
+args = parser.parse_args()
+
+vary_param = args.vary
+critical_param_value_list = np.linspace(args.start, args.stop, args.num)
+
+
+
 
 """ CREATING THE DEVICE 
 all code is found in geometr.py """
@@ -70,34 +97,61 @@ bridge_width = 0.4          # Width of the bridge
 bulge_radius = 0.6          # Radius of the bulge in the middle 
 
 noise_amplitude = 0.1      # Amplitude of the spikes in the assymetrical region 
-noise_w = 35.0             # Frequency of the spikes 
+noise_w = 30.0             # Frequency of the spikes 
 circle_def = 0.01           # How often to create a new point (the less, the more pointy)
 
 theta_min = np.pi / 2       # Left angle to start introducing the assymetry
 theta_max = 0.0             # Right angle to introduce the assymetry
 
 
+params = {
+    "bridge_width": bridge_width,
+    "bulge_radius": bulge_radius,
+    "noise_amplitude": noise_amplitude,
+    "noise_w": noise_w,
+    "circle_def": circle_def,
+    "theta_min": theta_min,
+    "theta_max": theta_max,
+}
 
 
-
-os.makedirs(f"{PATH}/{critical_param}", exist_ok=True)
+os.makedirs(f"{PATH}/{vary_param}", exist_ok=True)
 
 for value in critical_param_value_list:
+    params[vary_param] = value
 
-    # WE CREATE THE GIVEN DEVICE
-    # TODO: remember to change the variable parameter value
-    device = createDevice(layer,
-                          value, bulge_radius,
-                          noise_amplitude, noise_w, circle_def, 
-                          theta_min, theta_max).rotate(90)      # Rotate 90d for a better look in the videos
+    device = createDevice(
+        layer,
+        params["bridge_width"],
+        params["bulge_radius"],
+        params["noise_amplitude"],
+        params["noise_w"],
+        params["circle_def"],
+        params["theta_min"],
+        params["theta_max"],
+    ).rotate(90)
 
     device.make_mesh(max_edge_length=xi / 2)
+    
+    # device.draw()
+    # plt.show()
+
+    findCriticalCurrents(device, MAGNETIC_FIELD, INITIAL_CURRENT_CHOICE, PATH, presicion = PRESICION, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=vary_param, critical_param_value=value, cores = CORES)
 
 
-    findCriticalCurrents(device, MAGNETIC_FIELD, INITIAL_CURRENT_CHOICE, PATH, presicion = 1e-2, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=critical_param, critical_param_value=value, cores = CORES)
-
-
-
-# checkParameters(device, path = "realCurrentsVar", name="C", currents = [n for n in np.linspace(-0.03, 0.03, 7)], mfields = [5.0], simulation_time=500)
-
-
+# device = createDevice(
+#     layer,
+#     params["bridge_width"],
+#     params["bulge_radius"],
+#     params["noise_amplitude"],
+#     params["noise_w"],
+#     params["circle_def"],
+#     params["theta_min"],
+#     params["theta_max"],
+# ).rotate(90)
+# device.make_mesh(max_edge_length=xi / 2, smooth = 100)
+#
+#
+# checkParameters(device, path = "otherStuff", name="C", currents = [0], mfields = np.linspace(12.0, 30.0, 12), simulation_time=350)
+#
+#

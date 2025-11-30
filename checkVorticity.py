@@ -38,7 +38,7 @@ def process_one(I, B, path, name, device, simulation_time):
         bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 
         fig.savefig(
-            f"images/checkVorticity/{path}/{I}_{name}.png",
+            f"images/checkVorticity/{path}/{B}_{name}.png",
             bbox_inches=bbox
         )
 
