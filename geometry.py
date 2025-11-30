@@ -8,6 +8,9 @@ from shapely.geometry import Polygon, Point
 from shapely.ops import unary_union
 import matplotlib.pyplot as plt
 
+# Avoid warnings
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 length_units = "um" # ummmmmm
 
