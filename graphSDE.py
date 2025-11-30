@@ -1,5 +1,16 @@
 """ Functions to correctly graph the supercritical currents """
-
+# Avoid warnings
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings(
+    "ignore",
+    message="cupyx.jit.rawkernel is experimental. The interface can change in the future."
+)
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    module="cupyx.jit._interface"
+)
 
 # pyTDGL imports
 import tdgl
@@ -12,11 +23,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed, cpu_count   
 
-import warnings
-warnings.filterwarnings("ignore")
-
-
-
 
 
 IV   = []                            # list of (I, V) tuples
@@ -27,23 +33,22 @@ R_list = []
 
 
 def runSimulation(I_val, B, device, solvetime, skiptime):
+
     opts = tdgl.SolverOptions(
         solve_time=solvetime,
         skip_time = skiptime,         
         field_units='mT',
-        current_units='uA', 
-        gpu = False)
+        current_units='uA')
 
     sol = tdgl.solve(device, opts,
                      applied_vector_potential=B,
-                     terminal_currents={"source": I_val, "drain": -I_val})          # warm start
+                     terminal_currents={"source": I_val, "drain": -I_val})          
 
-    # ---- time-averaged voltage over last 100 τ₀ ----
     v_mean = sol.dynamics.mean_voltage(0, 1, tmin=0, tmax = solvetime)  # V
     return((I_val, v_mean))
 
 
-def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, presicion = 1e-2, ccTrsh = 1e-2):
+def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, presicion = 1e-2, ccTrsh = 1e-2, critical_param = "Shape", critical_param_value = 10.0):
     """ This function will find and graph the critical currents for a system. 
     It uses a bijection algorithm to avoid simulating currents we do not need. 
     It uses half the CPU count to process one polarity. 
@@ -59,10 +64,12 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, p
     c0_r = c0
     currents = [-c0 + cint_neg*p for p in range(cpuS)] + [cint_pos*(p+1) for p in range(cpuS)]  # First currents we'll check
     
-    print(f"================================\n INITIAL CURRENTS")
+    print("=" * 30)
+    print("STARTING SIMULATION FOR THE FOLLOWING PARAMETERS")
+    print(f"{critical_param}: {critical_param_value}")
+    print("=" * 30)
 
     while True:
-        print(currents)
         # Run the paralelized process and get the results
         results = Parallel(n_jobs=-1)(
                 delayed(lambda I: runSimulation(I, B, device, solvetime, skiptime))(I) for I in currents
@@ -73,7 +80,7 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, p
         Is, V = np.array(IV).T
 
         # Save current results to a file
-        with open(path, "a") as f:
+        with open(f"{path}/{critical_param}/{critical_param_value}.csv", "a") as f:
             np.savetxt(f, np.array(IV), delimiter=",", fmt="%.6f")       
 
 
@@ -82,7 +89,9 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, p
         mask = abs(V) > ccTrsh
         vTest = np.where(mask)[0]
 
-        print(f'\n\n -------------------------------- \n {V} \n {Is}\n')
+        print(f'C: {currents}')
+        print(f'V: {V}')
+        print("-" * 30)
 
         if vTest.size == 0:
             # If we haven't found the critical current, look in the next big interval
@@ -101,7 +110,6 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, p
         if changes.size == 0:
             print("--------------------------------------\n Haven't found critical currents ")
             print("\nOver super-critical current evaluation")
-            print("\n========================== \n NEW ATTEMP \n -------------------- \n")
 
 
             c0_l = abs(currents[ int(cpuS)-1 ])
@@ -170,6 +178,10 @@ def findCriticalCurrents(device, B, c0, path, skiptime = 750, solvetime = 100, p
             print(f"I+ = {low_pos_currents + cint_pos_temp/2} +- {cint_pos_temp/4}")
 
             print(f"\n\n With a precision of up to {presicion}")
+            
+
+            with open(f"{path}/{critical_param}/critical_currents.csv", "a") as f:
+                np.savetxt(f, np.array([critical_param_value, low_neg_currents + cint_neg_temp/2, low_pos_currents + cint_pos_temp/2]).reshape(1, -1), delimiter=",", fmt="%.6f")
 
             break
 

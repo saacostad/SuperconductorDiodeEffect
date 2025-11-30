@@ -1,6 +1,8 @@
 import numpy as np 
 import matplotlib.pyplot as plt 
-
+# Avoid warnings
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 data = np.loadtxt("New Test 2.csv", delimiter=",")
 
