@@ -115,7 +115,30 @@ params = {
 }
 
 
-os.makedirs(f"{PATH}/{vary_param}", exist_ok=True)
+os.makedirs(f"{PATH}/Images/{vary_param}", exist_ok=True)
+
+# for value in critical_param_value_list:
+#     params[vary_param] = value
+#
+#     device = createDevice(
+#         layer,
+#         params["bridge_width"],
+#         params["bulge_radius"],
+#         params["noise_amplitude"],
+#         params["noise_w"],
+#         params["circle_def"],
+#         params["theta_min"],
+#         params["theta_max"],
+#     ).rotate(90)
+#
+#     device.make_mesh(max_edge_length=xi / 2)
+#     
+#     # device.draw()
+#     # plt.show()
+#
+#     findCriticalCurrents(device, MAGNETIC_FIELD, INITIAL_CURRENT_CHOICE, PATH, presicion = PRESICION, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=vary_param, critical_param_value=value, cores = CORES)
+#
+
 
 for value in critical_param_value_list:
     params[vary_param] = value
@@ -130,28 +153,7 @@ for value in critical_param_value_list:
         params["theta_min"],
         params["theta_max"],
     ).rotate(90)
-
-    device.make_mesh(max_edge_length=xi / 2)
-    
-    # device.draw()
-    # plt.show()
-
-    findCriticalCurrents(device, MAGNETIC_FIELD, INITIAL_CURRENT_CHOICE, PATH, presicion = PRESICION, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=vary_param, critical_param_value=value, cores = CORES)
+    device.make_mesh(max_edge_length=xi / 2, smooth = 100)
 
 
-# device = createDevice(
-#     layer,
-#     params["bridge_width"],
-#     params["bulge_radius"],
-#     params["noise_amplitude"],
-#     params["noise_w"],
-#     params["circle_def"],
-#     params["theta_min"],
-#     params["theta_max"],
-# ).rotate(90)
-# device.make_mesh(max_edge_length=xi / 2, smooth = 100)
-#
-#
-# checkParameters(device, path = "otherStuff", name="C", currents = [0], mfields = np.linspace(12.0, 30.0, 12), simulation_time=350)
-#
-#
+    checkParameters(device, path = "IMAGES", name="C", currents = [0], mfields = [13.0], simulation_time=500)
