@@ -57,14 +57,14 @@ PATH = "test"
 
 PRESICION = 1e-3
 
-THERMTIME = 500 
-AVRTIME = 200
+THERMTIME = 700 
+AVRTIME = 300
 
 
 MAGNETIC_FIELD = 15.0
 INITIAL_CURRENT_CHOICE = 0.1
 
-CORES = 80
+CORES = 100
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--vary", required=True,
@@ -93,7 +93,7 @@ critical_param_value_list = np.linspace(args.start, args.stop, args.num)
 all code is found in geometr.py """
 
 # Geometry parameters 
-bridge_width = 0.4          # Width of the bridge 
+bridge_width = 0.27777          # Width of the bridge 
 bulge_radius = 0.6          # Radius of the bulge in the middle 
 
 noise_amplitude = 0.1      # Amplitude of the spikes in the assymetrical region 
@@ -117,31 +117,8 @@ params = {
 
 os.makedirs(f"{PATH}/Images/{vary_param}", exist_ok=True)
 
-# for value in critical_param_value_list:
-#     params[vary_param] = value
-#
-#     device = createDevice(
-#         layer,
-#         params["bridge_width"],
-#         params["bulge_radius"],
-#         params["noise_amplitude"],
-#         params["noise_w"],
-#         params["circle_def"],
-#         params["theta_min"],
-#         params["theta_max"],
-#     ).rotate(90)
-#
-#     device.make_mesh(max_edge_length=xi / 2)
-#     
-#     # device.draw()
-#     # plt.show()
-#
-#     findCriticalCurrents(device, MAGNETIC_FIELD, INITIAL_CURRENT_CHOICE, PATH, presicion = PRESICION, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=vary_param, critical_param_value=value, cores = CORES)
-#
-
-
 for value in critical_param_value_list:
-    params[vary_param] = value
+    # params[vary_param] = value
 
     device = createDevice(
         layer,
@@ -153,7 +130,60 @@ for value in critical_param_value_list:
         params["theta_min"],
         params["theta_max"],
     ).rotate(90)
-    device.make_mesh(max_edge_length=xi / 2, smooth = 100)
+
+    device.make_mesh(max_edge_length=xi / 2)
+    
+    # device.draw()
+    # plt.show()
+
+    findCriticalCurrents(device, value, INITIAL_CURRENT_CHOICE, PATH, presicion = PRESICION, skiptime = THERMTIME, solvetime = AVRTIME, critical_param=vary_param, critical_param_value=value, cores = CORES)
 
 
-    checkParameters(device, path = "IMAGES", name="C", currents = [0], mfields = [13.0], simulation_time=500)
+# def runSimulation(I, B, device, simulation_time, paramval, path):
+#
+#     opts = tdgl.SolverOptions(
+#                 solve_time = simulation_time,
+#                 current_units = 'uA',
+#                 field_units = 'mT',
+#                 gpu = False 
+#             )
+#
+#     sol = tdgl.solve(device, opts,
+#                      applied_vector_potential = B,
+#                      terminal_currents = {"source": I, "drain": -I})
+#
+#     fig, axs = sol.plot_order_parameter()
+#     fig.canvas.draw()  
+#
+#     for i, ax in enumerate(axs):
+#         name = "OP" if i == 0 else "Phase"
+#         bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+#
+#         fig.savefig(
+#             f"images/checkVorticity/{path}/{paramval}_{name}.png",
+#             bbox_inches=bbox
+#         )
+#
+#     plt.close(fig)
+#
+#     fig.savefig(f"images/checkVorticity/{path}/{paramval}.png",)
+#
+#
+# PATH = "Varying_current"
+# os.makedirs(f"images/checkVorticity/{PATH}", exist_ok=True)
+# for value in [-0.020, -0.015, -0.010, 0.0, 0.010, 0.015, 0.020]:
+#     # params[vary_param] = value
+#
+#     device = createDevice(
+#         layer,
+#         params["bridge_width"],
+#         params["bulge_radius"],
+#         params["noise_amplitude"],
+#         params["noise_w"],
+#         params["circle_def"],
+#         params["theta_min"],
+#         params["theta_max"],
+#     ).rotate(90)
+#     device.make_mesh(max_edge_length=xi / 2, smooth = 100)
+#
+#     runSimulation(value, 13.0, device, 500, value, PATH)
